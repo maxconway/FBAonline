@@ -131,7 +131,8 @@ shinyServer(function(input, output, session) {
   observe({
     logfine('Started evaluation: observe')
     reaction_metab_results <- reaction_metab_results()
-    if(is.data.frame(reaction_metab_results)){
+    
+    if(is.data.frame(reaction_metab_results) && ('reaction' %in% names(reaction_metab_results))){
       updateSelectizeInput(session, 'reaction_filter', choices = unique(reaction_metab_results$reaction))
     }
   })
