@@ -14,6 +14,8 @@ library(magrittr)
 library(ggplot2)
 library(tidyr)
 
+source('R/gurobi2lp.R')
+
 basicConfig('FINEST')
 addHandler(writeToConsole)
 
@@ -45,7 +47,7 @@ shinyServer(function(input, output, session) {
     logfine('Started evaluation: model1_evaluated')
     model_parsed <- model1_parsed()
     if(!is.null(model_parsed) & is.list(model_parsed)){
-      gurobi::gurobi(model_parsed)
+      gurobi2lp(model_parsed)
     }else{
       NULL
     }
@@ -77,7 +79,7 @@ shinyServer(function(input, output, session) {
     logfine('Started evaluation: model1_evaluated')
     model_parsed <- model2_parsed()
     if(!is.null(model_parsed) & is.list(model_parsed)){
-      gurobi::gurobi(model_parsed)
+      gurobi2lp(model_parsed)
     }else{
       NULL
     }
@@ -131,7 +133,6 @@ shinyServer(function(input, output, session) {
   observe({
     logfine('Started evaluation: observe')
     reaction_metab_results <- reaction_metab_results()
-    
     if(is.data.frame(reaction_metab_results) && ('reaction' %in% names(reaction_metab_results))){
       updateSelectizeInput(session, 'reaction_filter', choices = unique(reaction_metab_results$reaction))
     }
@@ -193,16 +194,16 @@ shinyServer(function(input, output, session) {
     reaction_metab_results %>%
       inner_join(filter(., group==contrast_1),
                  filter(., group==contrast_2),
-                 by=c('reaction', 'metabolite')) %T>% logfiner('joined',.) %>%
+                 by=c('reaction', 'metabolite')) %>%
       select(-group.x, -group.y) %>%
       mutate(diff = flux.x-flux.y) %>%
       select(-flux.x, -flux.y)  %>%
-      spread(metabolite, diff, fill=0) %T>% logfiner('spread',.)  %>%
+      spread(metabolite, diff, fill=0) %>%
       (function(x){
         res <- as.matrix(x %>% select(-reaction))
         rownames(res) <- x$reaction
         return(res)
-      }) %T>% logfiner('matricised',.) %>%
+      }) %>%
       heatmap.plus::heatmap.plus(distfun = (function(x){dist(abs(x))}), 
                                  col=RColorBrewer::brewer.pal(11,'RdYlGn'), 
                                  main=contrast
