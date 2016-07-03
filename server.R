@@ -170,8 +170,11 @@ shinyServer(function(input, output, session) {
     logfine('Started evaluation: model_table')
     filtered_reactions_with_fluxes <- filtered_reactions_with_fluxes()
     logfine('Retrieved all reactives: model_table')
-    filtered_reactions_with_fluxes %>%
-      spread(group, flux)
+    if(length(unique(filtered_reactions_with_fluxes$group))>1){
+      filtered_reactions_with_fluxes %>%
+        spread(group, flux)
+    }else
+      filtered_reactions_with_fluxes
   })
   
   output$bar_chart <- renderPlot({
