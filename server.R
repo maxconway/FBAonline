@@ -47,7 +47,8 @@ shinyServer(function(input, output, session) {
     logfine('Started evaluation: model1_evaluated')
     model_parsed <- model1_parsed()
     if(!is.null(model_parsed) & is.list(model_parsed)){
-      gurobi2lp(model_parsed)
+      result <- gurobi2lp(model_parsed)
+      logfine(paste('mod1 LP status: ',result$status))
     }else{
       NULL
     }
@@ -79,7 +80,8 @@ shinyServer(function(input, output, session) {
     logfine('Started evaluation: model1_evaluated')
     model_parsed <- model2_parsed()
     if(!is.null(model_parsed) & is.list(model_parsed)){
-      gurobi2lp(model_parsed)
+      result <- gurobi2lp(model_parsed)
+      logfine(paste('mod2 LP status: ',result$status))
     }else{
       NULL
     }
@@ -113,7 +115,6 @@ shinyServer(function(input, output, session) {
   reaction_metab_results <- reactive({
     logfine('Started evaluation: reaction_metab_results')
     full_list_results <- full_list_results()
-    
     if(nrow(full_list_results)>0){  
       full_list_results %>%
         select(group, fluxmat) %>%
@@ -132,9 +133,18 @@ shinyServer(function(input, output, session) {
   
   observe({
     logfine('Started evaluation: observe')
-    reaction_metab_results <- reaction_metab_results()
-    if(is.data.frame(reaction_metab_results) && ('reaction' %in% names(reaction_metab_results))){
-      updateSelectizeInput(session, 'reaction_filter', choices = unique(reaction_metab_results$reaction))
+    full_list_results <- full_list_results()
+    
+    if(nrow(full_list_results)>0){
+      abbreviations <- full_list_results$fba_mod %>% 
+        map_df(I) %>%
+        arrange(abbreviation) %>%
+        getElement('abbreviation') %>%
+        unique()
+      
+      updateSelectizeInput(session, 'reaction_filter', choices = abbreviations)
+    }else{
+      updateSelectizeInput(session, 'reaction_filter', choices = NULL)
     }
   })
   
@@ -193,7 +203,6 @@ shinyServer(function(input, output, session) {
     contrast_1 <- input$contrast_1
     contrast_2 <- input$contrast_2
     logfine('Retrieved all reactives: heatmap')
-    
     reaction_metab_results %>%
       inner_join(filter(., group==contrast_1),
                  filter(., group==contrast_2),

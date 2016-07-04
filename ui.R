@@ -23,7 +23,8 @@ shinyUI(fluidPage(
       p('Paste a link to a google sheet containing a metabolic model into one of the "model url" boxes.'),
       p('An example of a suitable sheet for an E. Coli model is here: ', a('iJO1366', href='https://docs.google.com/spreadsheets/d/1XdpAKFyEpGjPmI3UZYYK4zQw-RUzKWD2_GJnp3LO_Pk/edit?usp=sharing')),
       p('To compare models, enter both into the "model url" boxes.'),
-      p('Use the tabs to view different visualizations of the models')
+      p('Use the tabs to view different visualizations of the models'),
+      p('You can filter to certain reactions using the Filter reactions box')
     ),
 
     # Show a plot of the generated distribution
