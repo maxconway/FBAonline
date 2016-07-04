@@ -15,10 +15,15 @@ shinyUI(fluidPage(
   # Sidebar with a slider input for number of bins
   sidebarLayout(
     sidebarPanel(
-      actionButton("reevaluate", "Reevaluate Model"),
-      textInput('model_url_1','model_url_1'),
-      textInput('model_url_2','model_url_2'),
-      selectizeInput('reaction_filter', 'Filter reactions',NULL,multiple=TRUE)
+      actionButton("reevaluate", "Evaluate Model"),
+      textInput('model_url_1','model url 1'),
+      textInput('model_url_2','model url 2'),
+      selectizeInput('reaction_filter', 'Filter reactions',NULL,multiple=TRUE),
+      h3('Instructions'),
+      p('Paste a link to a google sheet containing a metabolic model into one of the "model url" boxes.'),
+      p('An example of a suitable sheet for an E. Coli model is here: ', a('iJO1366', href='https://docs.google.com/spreadsheets/d/1XdpAKFyEpGjPmI3UZYYK4zQw-RUzKWD2_GJnp3LO_Pk/edit?usp=sharing')),
+      p('To compare models, enter both into the "model url" boxes.'),
+      p('Use the tabs to view different visualizations of the models')
     ),
 
     # Show a plot of the generated distribution
