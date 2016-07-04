@@ -27,20 +27,22 @@ shinyServer(function(input, output, session) {
     model_url_1 <- input$model_url_1
     if(nchar(model_url_1)<10){
       loginfo('url too short')
-      data_frame()
+      result <- data_frame()
     }else{
-      gsheet::gsheet2tbl(model_url_1)
+      result <- gsheet::gsheet2tbl(model_url_1)
     }
+    result
   })
   
   model1_parsed <- reactive({
     logfine('Started evaluation: model1_parsed')
     model1 <- model1()
     if(!is.null(model1) & nrow(model1) > 0){
-      FluxBalanceAnalyzeR::parse_reaction_table(model1)
+      result <- FluxBalanceAnalyzeR::parse_reaction_table(model1)
     }else{
-      'model missing'
+      result <- 'model missing'
     }
+    result
   })
   
   model1_evaluated <- reactive({
@@ -50,8 +52,9 @@ shinyServer(function(input, output, session) {
       result <- gurobi2lp(model_parsed)
       logfine(paste('mod1 LP status: ',result$status))
     }else{
-      NULL
+      result <- NULL
     }
+    result
   })
   
   model2 <- reactive({
@@ -60,20 +63,22 @@ shinyServer(function(input, output, session) {
     model_url_2 <- input$model_url_2
     if(nchar(model_url_2)<10){
       loginfo('url too short')
-      data_frame()
+      result <- data_frame()
     }else{
-      gsheet::gsheet2tbl(model_url_2)
+      result <- gsheet::gsheet2tbl(model_url_2)
     }
+    result
   })
   
   model2_parsed <- reactive({
     logfine('Started evaluation: model2_parsed')
     model2 <- model2()
     if(!is.null(model2) & nrow(model2) > 0){
-      FluxBalanceAnalyzeR::parse_reaction_table(model2)
+      result <- FluxBalanceAnalyzeR::parse_reaction_table(model2)
     }else{
-      'model missing'
+      result <- 'model missing'
     }
+    result
   })
   
   model2_evaluated <- reactive({
@@ -83,8 +88,9 @@ shinyServer(function(input, output, session) {
       result <- gurobi2lp(model_parsed)
       logfine(paste('mod2 LP status: ',result$status))
     }else{
-      NULL
+      result <- NULL
     }
+    result
   })
   
   full_list_results <- reactive({
@@ -97,7 +103,7 @@ shinyServer(function(input, output, session) {
     model2_evaluated <- model2_evaluated()
     
     logfine('Retrieved all reactives: full_list_results')
-    
+
     data_frame(group = c('Group1', 'Group2'),
                fba_mod = list(model1, model2),
                gurobi_mod = list(model1_parsed, model2_parsed),
