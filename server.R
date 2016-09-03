@@ -27,7 +27,7 @@ shinyServer(function(input, output, session) {
     model_url_1 <- input$model_url_1
     if(nchar(model_url_1)<10){
       loginfo('url too short')
-      result <- data_frame()
+      result <- tibble::tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef)
     }else{
       result <- gsheet::gsheet2tbl(model_url_1)
     }
@@ -63,7 +63,7 @@ shinyServer(function(input, output, session) {
     model_url_2 <- input$model_url_2
     if(nchar(model_url_2)<10){
       loginfo('url too short')
-      result <- data_frame()
+      result <- tibble::tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef)
     }else{
       result <- gsheet::gsheet2tbl(model_url_2)
     }
@@ -191,6 +191,21 @@ shinyServer(function(input, output, session) {
         spread(group, flux)
     }else
       filtered_reactions_with_fluxes
+  })
+  
+  output$metabolite_table <- renderDataTable({
+    logfine('Started evaluation: metabolite_table')
+    model1 <- model1()
+    model2 <- model2()
+    logfine('Retrieved all reactives: metabolite_table')
+    bind_rows(model1 %>% 
+                FluxBalanceAnalyzeR::expand_reactions(pattern_arrow = input$pattern_arrow) %>%
+                mutate(model = 'model1'),
+              model2 %>% 
+                FluxBalanceAnalyzeR::expand_reactions(pattern_arrow = input$pattern_arrow) %>%
+                mutate(model = 'model2')) %>%
+      group_by(model, met) %>%
+      summarise
   })
   
   output$bar_chart <- renderPlot({

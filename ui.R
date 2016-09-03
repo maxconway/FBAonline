@@ -36,10 +36,18 @@ shinyUI(fluidPage(
         tabPanel(title = 'bar comparison',
                  plotOutput('bar_chart')
                  ),
-        tabPanel(title = 'heatmap',
-                 selectInput('contrast_1', 'contrast_1', 'Group1', 'Group1'),
-                 selectInput('contrast_2', 'contrast_2', 'Group2', 'Group2'),
-                 plotOutput('heatmap')
+        # tabPanel(title = 'heatmap',
+        #          selectInput('contrast_1', 'contrast_1', 'Group1', 'Group1'),
+        #          selectInput('contrast_2', 'contrast_2', 'Group2', 'Group2'),
+        #          plotOutput('heatmap')
+        #          ),
+        tabPanel(title = 'metabolites',
+                 dataTableOutput('metabolite_table')
+                 ),
+        tabPanel(title = 'settings',
+                 textInput(inputId = 'pattern_arrow', 
+                           label = 'Regex for arrow in equations',
+                           value = '<?[-=]+>')
                  )
       )
     )
