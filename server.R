@@ -9,6 +9,7 @@ library(ROI)
 library(magrittr)
 library(logging)
 library(ROI.plugin.glpk)
+library(visNetwork)
 
 basicConfig('FINEST')
 addHandler(writeToConsole)
@@ -146,11 +147,51 @@ shinyServer(function(input, output, session) {
   output$bar_chart <- renderPlot({
     logfine('Started evaluation: bar_chart')
     filtered_reactions_with_fluxes <- filtered_reactions_with_fluxes()
-    logfine('Retrieved all reactives: bar_chart')
+    logfine('Finished loading: bar_chart')
     filtered_reactions_with_fluxes %>%
       ggplot(aes(x=abbreviation, y=flux, colour=name)) + 
       geom_point() + 
       coord_flip()
+  })
+  
+  output$network <- renderVisNetwork({
+    logfine('Started evaluation: network')
+    model1_parsed <- model1_parsed()
+    reaction_filter <- input$reaction_filter
+    logfine('Finished loading: network')
+    
+    if('model missing' %in% model1_parsed){
+      model1_parsed <- list(rxns = tibble::tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef),
+                            mets = tibble::tribble(~met),
+                            stoich = tibble::tribble(~stoich, ~abbreviation, ~met))
+    }
+      with(model1_parsed,{
+        rxns <- rxns %>% filter(abbreviation %in% reaction_filter)
+        stoich <- stoich %>% filter(abbreviation %in% reaction_filter)
+        mets <- mets %>% filter(met %in% stoich$met)
+        
+        if(nrow(rxns)>50){
+          shiny::validate('Too many reactions. Filter down to 50 or less.')
+        }
+        
+        visNetwork(nodes=bind_rows(rxns %>% 
+                                     transmute(id=as.character(abbreviation),
+                                               type='rxn'),
+                                   mets %>% 
+                                     transmute(id=met, type='met')) %>%
+                     mutate(title=id,
+                            group=type),
+                   edges=stoich %>%
+                     mutate(from = ifelse(stoich>0, as.character(abbreviation), met),
+                            to = ifelse(stoich>0, met, as.character(abbreviation)),
+                            value = abs(stoich),
+                            title = abs(stoich),
+                            arrows='middle')) %>%
+        visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+        visEdges(smooth = FALSE) %>%
+        visPhysics(stabilization = FALSE)
+      })
+    
   })
   
 })
