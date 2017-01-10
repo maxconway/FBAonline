@@ -8,6 +8,7 @@ library(fbar)
 library(ROI)
 library(magrittr)
 library(logging)
+library(ROI.plugin.glpk)
 
 basicConfig('FINEST')
 addHandler(writeToConsole)
