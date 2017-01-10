@@ -63,7 +63,7 @@ shinyServer(function(input, output, session) {
     model2 <- model2()
     logfine('Finished loading: model2_parsed')
     if(!is.null(model2) & nrow(model2) > 0){
-      result <- Ffbar::reactiontbl_to_expanded(model2)
+      result <- fbar::reactiontbl_to_expanded(model2)
     }else{
       result <- 'model missing'
     }
