@@ -6,6 +6,7 @@
 #
 
 library(shiny)
+library(visNetwork)
 
 shinyUI(fluidPage(
 
