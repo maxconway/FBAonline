@@ -26,7 +26,11 @@ shinyServer(function(input, output, session) {
       loginfo('url too short')
       result <- tibble::tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef)
     }else{
-      result <- gsheet::gsheet2tbl(model_url_1)
+      result <- tryCatch(gsheet::gsheet2tbl(model_url_1),
+                         error = function(e){
+                           validate(need(FALSE, label = 'URL for model 1', message='URL for model 1 is not a google spreadsheet'))
+                           return(tibble::tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef))
+                         })
     }
     result
   })
@@ -40,7 +44,11 @@ shinyServer(function(input, output, session) {
       loginfo('url too short')
       result <- tibble::tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef)
     }else{
-      result <- gsheet::gsheet2tbl(model_url_2)
+      result <- tryCatch(gsheet::gsheet2tbl(model_url_2),
+                         error = function(e){
+                           validate(need(FALSE, label = 'URL for model 2', message='URL for model 2 is not a google spreadsheet'))
+                           return(tibble::tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef))
+                         })
     }
     result
   })
@@ -146,7 +154,8 @@ shinyServer(function(input, output, session) {
     logfine('Finished loading: model_table')
 
     filtered_reactions_with_fluxes %>%
-      mutate(flux = signif(flux, 3))
+      mutate(flux = signif(flux, 3)) %>%
+      arrange(desc(abs(obj_coef)), abbreviation)
   })
   
   output$bar_chart <- renderPlot({
