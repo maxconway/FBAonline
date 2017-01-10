@@ -111,7 +111,11 @@ shinyServer(function(input, output, session) {
       model2 = list(parsed = model2_parsed, evaluated = model2_evaluated, name='Model 2')
     ) %>%
       keep(~is_list(.[['parsed']])) %>%
-      map_df(function(x){x$parsed$rxns %>% mutate(flux = x$evaluated[['solution']])}, .id='name') %>%
+      map_df(function(x){
+        x$parsed %>% 
+          fbar::expanded_to_reactiontbl() %>% 
+          mutate(flux = ROI::solution(x$evaluated))
+        }, .id='name') %>%
       bind_rows(tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef, ~flux),.) %>% # normalizes empty tables
       filter((abbreviation %in% reaction_filter) | is_empty(reaction_filter)) %>%
       select(flux, everything())
@@ -141,7 +145,8 @@ shinyServer(function(input, output, session) {
     filtered_reactions_with_fluxes <- filtered_reactions_with_fluxes()
     logfine('Finished loading: model_table')
 
-    filtered_reactions_with_fluxes
+    filtered_reactions_with_fluxes %>%
+      mutate(flux = signif(flux, 3))
   })
   
   output$bar_chart <- renderPlot({
