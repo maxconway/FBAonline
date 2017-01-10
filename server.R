@@ -122,7 +122,7 @@ shinyServer(function(input, output, session) {
       map_df(function(x){
         x$parsed %>% 
           fbar::expanded_to_reactiontbl() %>% 
-          mutate(flux = ROI::solution(x$evaluated))
+          inner_join(data_frame(abbreviation = x$parsed$rxns$abbreviation, flux = ROI::solution(x$evaluated)))
         }, .id='name') %>%
       bind_rows(tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef, ~flux),.) %>% # normalizes empty tables
       filter((abbreviation %in% reaction_filter) | is_empty(reaction_filter)) %>%
