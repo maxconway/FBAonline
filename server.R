@@ -8,8 +8,11 @@ library(fbar)
 library(ROI)
 library(magrittr)
 library(logging)
-library(ROI.plugin.glpk)
+library(ROI.plugin.ecos)
+safely(library)('ROI.plugin.glpk')
 library(visNetwork)
+
+source('R/methelpers.R')
 
 basicConfig('FINEST')
 addHandler(writeToConsole)
@@ -62,7 +65,7 @@ shinyServer(function(input, output, session) {
     if(!is.null(model1) & nrow(model1) > 0){
       result <- fbar::reactiontbl_to_expanded(model1)
     }else{
-      result <- 'model missing'
+      result <- NULL
     }
     result
   })
@@ -74,7 +77,7 @@ shinyServer(function(input, output, session) {
     if(!is.null(model2) & nrow(model2) > 0){
       result <- fbar::reactiontbl_to_expanded(model2)
     }else{
-      result <- 'model missing'
+      result <- NULL
     }
     result
   })
@@ -166,6 +169,21 @@ shinyServer(function(input, output, session) {
       ggplot(aes(x=abbreviation, y=flux, colour=name)) + 
       geom_point() + 
       coord_flip()
+  })
+  
+  output$metabolite_table <- renderDataTable({
+    logfine('Started evaluation: metabolite_table')
+    model1_parsed <- model1_parsed()
+    if(!is.null(model1_parsed)){
+      result <- model1_parsed %>%
+        getElement('mets') %>%
+        expand_metabolites() %>%
+        mutate(present = 'present') %>%
+        tidyr::spread(compartment, present, fill='absent')
+    }else{
+      result <- NULL
+    }
+    return(result)
   })
   
   output$network <- renderVisNetwork({
