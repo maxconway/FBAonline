@@ -9,8 +9,9 @@ library(ROI)
 library(magrittr)
 library(logging)
 library(ROI.plugin.ecos)
-safely(library)('ROI.plugin.glpk')
+#safely(library)('ROI.plugin.glpk')
 library(visNetwork)
+library(stringr)
 
 source('R/methelpers.R')
 
