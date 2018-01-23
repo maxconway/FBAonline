@@ -12,6 +12,8 @@ library(ROI.plugin.ecos)
 #safely(library)('ROI.plugin.glpk')
 library(visNetwork)
 library(stringr)
+library(igraph)
+library(ggdendro)
 
 source('R/methelpers.R')
 
@@ -185,6 +187,37 @@ shinyServer(function(input, output, session) {
       result <- NULL
     }
     return(result)
+  })
+  
+  output$cluster_chart <- renderPlot({
+    logfine('Started evaluation: cluster_chart')
+    model1_parsed <- model1_parsed()
+    filtered_reactions_with_fluxes <- filtered_reactions_with_fluxes()
+    logfine('Finished loading: bar_chart')
+    
+    clusts <- model1_parsed %>%
+      `$`(stoich) %>%
+      select(-stoich) %>%
+      inner_join(.,.,by='met') %>%
+      select(from=abbreviation.x, to=abbreviation.y) %>%
+      unique() %>%
+      filter(from!=to) %>%
+      graph_from_data_frame(vertices = model1_parsed$rxns) %>%
+      as.undirected(mode='collapse') %>%
+      cluster_walktrap() %>%
+      as.dendrogram()
+    
+    b <- clusts %>% 
+      cut(h=200) %>%
+      `$`(lower) %>%
+      discard(is.leaf) %>%
+      keep(~attr(.x,'members')>3) %>%
+      map(dendro_data) %>%
+      transpose %>%
+      `[`(c('labels','segments')) %>%
+      map(function(x){quietly(bind_rows)(x, .id='tree')$result}) 
+    
+    ggplot(b$segments, aes(x=x,y=y)) + geom_segment(aes(xend=xend, yend=yend), data=b$segments) + geom_text(aes(label=label), data=b$labels, hjust='left') + facet_wrap(~tree) + coord_flip()
   })
   
   output$network <- renderVisNetwork({

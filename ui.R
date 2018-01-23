@@ -43,7 +43,10 @@ shinyUI(fluidPage(
                  ),
         tabPanel(title = 'model 1 metabolites',
                  dataTableOutput('metabolite_table')
-                )
+                ),
+        tabPanel(title = 'model 1 clusters',
+                 plotOutput('cluster_chart')
+        )
         # tabPanel(title = 'heatmap',
         #          selectInput('contrast_1', 'contrast_1', 'Group1', 'Group1'),
         #          selectInput('contrast_2', 'contrast_2', 'Group2', 'Group2'),
