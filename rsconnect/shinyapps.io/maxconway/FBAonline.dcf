@@ -1,8 +1,12 @@
 name: FBAonline
 title: FBAonline
+username:
 account: maxconway
 server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
 appId: 152584
-bundleId: 820842
+bundleId: 1189147
 url: https://maxconway.shinyapps.io/fbaonline/
-when: 1494340675.43028
+when: 1516726813.66962
+asMultiple: FALSE
+asStatic: FALSE

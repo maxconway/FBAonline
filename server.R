@@ -9,7 +9,7 @@ library(ROI)
 library(magrittr)
 library(logging)
 library(ROI.plugin.ecos)
-#safely(library)('ROI.plugin.glpk')
+safely(library)('ROI.plugin.glpk')
 library(visNetwork)
 library(stringr)
 library(igraph)
@@ -241,12 +241,14 @@ shinyServer(function(input, output, session) {
     
     ggplot(b$segments, aes(x=x,y=y)) + 
       geom_segment(aes(xend=xend, yend=yend), data=b$segments, alpha=0.5) + 
-      geom_text(aes(label=label), data=b$labels, hjust='left') + 
+      geom_text(aes(label=label), data=b$labels, hjust='left', nudge_x = 0.15) + 
       facet_wrap(~tree, scales='free_y') + 
+      ylab('Height') +
       coord_flip() +
       theme_bw() +
       theme(axis.text.y=element_blank(),
             axis.title.y=element_blank(),
+            axis.ticks.y = element_blank(),
             strip.text = element_blank(),
             strip.background = element_blank())
   })
