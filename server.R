@@ -8,12 +8,15 @@ library(fbar)
 library(ROI)
 library(magrittr)
 library(logging)
+library(ROI)
 library(ROI.plugin.ecos)
 safely(library)('ROI.plugin.glpk')
 library(visNetwork)
 library(stringr)
 library(igraph)
 library(ggdendro)
+
+options(shiny.sanitize.errors = FALSE)
 
 source('R/methelpers.R')
 
@@ -30,12 +33,12 @@ shinyServer(function(input, output, session) {
     logfine('Finished loading: model1')
     if(nchar(model_url_1)<10){
       loginfo('url too short')
-      result <- tibble::tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef)
+      result <- tibble(lowbnd=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double())
     }else{
       result <- tryCatch(gsheet::gsheet2tbl(model_url_1),
                          error = function(e){
                            validate(need(FALSE, label = 'URL for model 1', message='URL for model 1 is not a google spreadsheet'))
-                           return(tibble::tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef))
+                           return(tibble(lowbnd=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double()))
                          })
     }
     result
@@ -48,12 +51,12 @@ shinyServer(function(input, output, session) {
     logfine('Finished loading: model2')
     if(nchar(model_url_2)<10){
       loginfo('url too short')
-      result <- tibble::tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef)
+      result <- tibble(lowbnd=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double())
     }else{
       result <- tryCatch(gsheet::gsheet2tbl(model_url_2),
                          error = function(e){
                            validate(need(FALSE, label = 'URL for model 2', message='URL for model 2 is not a google spreadsheet'))
-                           return(tibble::tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef))
+                           return(tibble(lowbnd=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double()))
                          })
     }
     result
@@ -85,54 +88,50 @@ shinyServer(function(input, output, session) {
     result
   })
   
-  model1_evaluated <- reactive({
-    logfine('Started evaluation: model1_evaluated')
-    model_parsed <- model1_parsed()
-    logfine('Finished loading: model1_evaluated')
-    if(!is.null(model_parsed) & is.list(model_parsed)){
-      result <- ROI_solve(expanded_to_ROI(model_parsed))
-      logfine(paste('mod1 LP status: ',result$status$code))
-    }else{
-      result <- NULL
+  model1_reactions_with_fluxes <- reactive(label = 'model1_reactions_with_fluxes', x={
+    logfine('Started evaluation: model1_reactions_with_fluxes')
+    model <- model1()
+    logfine('Finished loading: model1_reactions_with_fluxes')
+    if(nrow(model)==0){
+      return(tibble(lowbnd=double(), flux=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double()))
     }
-    result
-  })
-  
-  model2_evaluated <- reactive({
-    logfine('Started evaluation: model2_evaluated')
-    model_parsed <- model2_parsed()
-    logfine('Finished loading: model2_evaluated')
-    if(!is.null(model_parsed) & is.list(model_parsed)){
-      result <- ROI_solve(expanded_to_ROI(model_parsed))
-  logfine(paste('mod2 LP status: ',result$status$code))
-    }else{
-      result <- NULL
-    }
-    result
-  })
-  
-  filtered_reactions_with_fluxes <- reactive(label = 'filtered_reactions_with_fluxes', x = {
-    logfine('Started evaluation: filtered_reactions_with_fluxes')
-    model1_parsed <- model1_parsed()
-    model2_parsed <- model2_parsed()
-    model1_evaluated <- model1_evaluated()
-    model2_evaluated <- model2_evaluated()
-    reaction_filter <- input$reaction_filter
-    logfine('Finished loading: filtered_reactions_with_fluxes')
     
-    list(
-      model1 = list(parsed = model1_parsed, evaluated = model1_evaluated, name='Model 1'),
-      model2 = list(parsed = model2_parsed, evaluated = model2_evaluated, name='Model 2')
-    ) %>%
-      keep(~is_list(.[['parsed']])) %>%
-      map_df(function(x){
-        x$parsed %>% 
-          fbar::expanded_to_reactiontbl() %>% 
-          inner_join(data_frame(abbreviation = x$parsed$rxns$abbreviation, flux = ROI::solution(x$evaluated)))
-        }, .id='name') %>%
-      bind_rows(tribble(~lowbnd, ~flux, ~uppbnd, ~abbreviation, ~name, ~equation, ~obj_coef),.) %>% # normalizes empty tables
-      filter((abbreviation %in% reaction_filter) | is_empty(reaction_filter)) %>%
-      select(flux, everything())
+    model %>%
+      find_fluxes_df(do_minimization = FALSE) %>%
+      bind_rows(tibble(lowbnd=double(), flux=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double()),.)
+  })
+  
+  model2_reactions_with_fluxes <- reactive(label = 'model2_reactions_with_fluxes', x={
+    logfine('Started evaluation: model2_reactions_with_fluxes')
+    model <- model2()
+    logfine('Finished loading: model2_reactions_with_fluxes')
+    if(nrow(model)==0){
+      return(tibble(lowbnd=double(), flux=double(), uppbnd=double(), abbreviation=character(), equation=character(), obj_coef=double()))
+    }
+    
+    model %>%
+      find_fluxes_df(do_minimization = FALSE) %>%
+      bind_rows(tibble(lowbnd=double(), flux=double(), uppbnd=double(), abbreviation=character(), equation=character(), obj_coef=double()),.)
+  })
+  
+  model1_filtered_reactions_with_fluxes <- reactive(label = 'model1_filtered_reactions_with_fluxes', x={
+    logfine('Started evaluation: model1_filtered_reactions_with_fluxes')
+    reactions_with_fluxes <- model1_reactions_with_fluxes()
+    reaction_filter <- input$reaction_filter
+    logfine('Finished loading: model1_filtered_reactions_with_fluxes')
+    
+    reactions_with_fluxes %>%
+      filter((abbreviation %in% reaction_filter) | is_empty(reaction_filter))
+  })
+  
+  model2_filtered_reactions_with_fluxes <- reactive(label = 'model2_filtered_reactions_with_fluxes', x={
+    logfine('Started evaluation: model2_filtered_reactions_with_fluxes')
+    reactions_with_fluxes <- model2_reactions_with_fluxes()
+    reaction_filter <- input$reaction_filter
+    logfine('Finished loading: model2_filtered_reactions_with_fluxes')
+    
+    reactions_with_fluxes %>%
+      filter((abbreviation %in% reaction_filter) | is_empty(reaction_filter))
   })
   
   clusters <- reactive(label = 'clusters', x = {
@@ -184,24 +183,28 @@ shinyServer(function(input, output, session) {
   
   output$model_table <- renderDataTable({
     logfine('Started evaluation: model_table')
-    filtered_reactions_with_fluxes <- filtered_reactions_with_fluxes()
+    filtered_reactions_with_fluxes <- model1_filtered_reactions_with_fluxes()
     logfine('Finished loading: model_table')
 
     filtered_reactions_with_fluxes %>%
       mutate(flux = signif(flux, 3)) %>%
+      #mutate_if(is_character, str_trunc, width=40) %>% # Produces weird error
       arrange(desc(abs(obj_coef)), abbreviation)
   })
   
   output$bar_chart <- renderPlot({
     logfine('Started evaluation: bar_chart')
-    filtered_reactions_with_fluxes <- filtered_reactions_with_fluxes()
+    model1_filtered_reactions_with_fluxes <- model1_filtered_reactions_with_fluxes()
+    model2_filtered_reactions_with_fluxes <- model2_filtered_reactions_with_fluxes()
     logfine('Finished loading: bar_chart')
     
-    if(nrow(filtered_reactions_with_fluxes)==0){
+    if((nrow(model1_filtered_reactions_with_fluxes) + nrow(model1_filtered_reactions_with_fluxes)) == 0){
       return('Waiting for models...')
     }
     
-    filtered_reactions_with_fluxes %>%
+    bind_rows(model1_filtered_reactions_with_fluxes %>% select(abbreviation, flux) %>% mutate(name='model1'),
+              model2_filtered_reactions_with_fluxes %>% select(abbreviation, flux) %>% mutate(name='model2'),
+    ) %>%
       ggplot(aes(x=abbreviation, y=flux, colour=name)) + 
       geom_point() + 
       coord_flip()
