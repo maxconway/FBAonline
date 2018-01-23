@@ -111,7 +111,7 @@ shinyServer(function(input, output, session) {
     result
   })
   
-  filtered_reactions_with_fluxes <- reactive({
+  filtered_reactions_with_fluxes <- reactive(label = 'filtered_reactions_with_fluxes', x = {
     logfine('Started evaluation: filtered_reactions_with_fluxes')
     model1_parsed <- model1_parsed()
     model2_parsed <- model2_parsed()
@@ -130,9 +130,31 @@ shinyServer(function(input, output, session) {
           fbar::expanded_to_reactiontbl() %>% 
           inner_join(data_frame(abbreviation = x$parsed$rxns$abbreviation, flux = ROI::solution(x$evaluated)))
         }, .id='name') %>%
-      bind_rows(tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef, ~flux),.) %>% # normalizes empty tables
+      bind_rows(tribble(~lowbnd, ~flux, ~uppbnd, ~abbreviation, ~name, ~equation, ~obj_coef),.) %>% # normalizes empty tables
       filter((abbreviation %in% reaction_filter) | is_empty(reaction_filter)) %>%
       select(flux, everything())
+  })
+  
+  clusters <- reactive(label = 'clusters', x = {
+    logfine('Started evaluation: clusters')
+    model1_parsed <- model1_parsed()
+    logfine('Finished loading: clusters')
+    
+    if(is_null(model1_parsed)){
+      return(NULL)
+    }
+    
+    model1_parsed %>%
+      `$`(stoich) %>%
+      select(-stoich) %>%
+      inner_join(.,.,by='met') %>%
+      select(from=abbreviation.x, to=abbreviation.y) %>%
+      unique() %>%
+      filter(from!=to) %>%
+      graph_from_data_frame(vertices = model1_parsed$rxns) %>%
+      as.undirected(mode='collapse') %>%
+      cluster_walktrap() %>%
+      as.dendrogram()
   })
 
   ### Observations
@@ -152,6 +174,12 @@ shinyServer(function(input, output, session) {
     updateSelectizeInput(session, 'reaction_filter', choices = abbreviations)
   })
   
+  observe({
+    clusters <- clusters()
+    updateSliderInput(session, 'cut_h', max = attr(clusters,'height'))
+    updateSliderInput(session, 'min_members', max = attr(clusters,'members'))
+  })
+  
   #### Outputs
   
   output$model_table <- renderDataTable({
@@ -168,6 +196,11 @@ shinyServer(function(input, output, session) {
     logfine('Started evaluation: bar_chart')
     filtered_reactions_with_fluxes <- filtered_reactions_with_fluxes()
     logfine('Finished loading: bar_chart')
+    
+    if(nrow(filtered_reactions_with_fluxes)==0){
+      return('Waiting for models...')
+    }
+    
     filtered_reactions_with_fluxes %>%
       ggplot(aes(x=abbreviation, y=flux, colour=name)) + 
       geom_point() + 
@@ -192,32 +225,30 @@ shinyServer(function(input, output, session) {
   output$cluster_chart <- renderPlot({
     logfine('Started evaluation: cluster_chart')
     model1_parsed <- model1_parsed()
-    filtered_reactions_with_fluxes <- filtered_reactions_with_fluxes()
-    logfine('Finished loading: bar_chart')
+    clusters <- clusters()
+    logfine('Finished loading: cluster_chart')
+    if(is_null(clusters)){return(NULL)}
     
-    clusts <- model1_parsed %>%
-      `$`(stoich) %>%
-      select(-stoich) %>%
-      inner_join(.,.,by='met') %>%
-      select(from=abbreviation.x, to=abbreviation.y) %>%
-      unique() %>%
-      filter(from!=to) %>%
-      graph_from_data_frame(vertices = model1_parsed$rxns) %>%
-      as.undirected(mode='collapse') %>%
-      cluster_walktrap() %>%
-      as.dendrogram()
-    
-    b <- clusts %>% 
-      cut(h=200) %>%
+    b <- clusters %>% 
+      cut(h = input$cut_h) %>%
       `$`(lower) %>%
       discard(is.leaf) %>%
-      keep(~attr(.x,'members')>3) %>%
+      keep(~attr(.x,'members') >= input$min_members) %>%
       map(dendro_data) %>%
       transpose %>%
       `[`(c('labels','segments')) %>%
       map(function(x){quietly(bind_rows)(x, .id='tree')$result}) 
     
-    ggplot(b$segments, aes(x=x,y=y)) + geom_segment(aes(xend=xend, yend=yend), data=b$segments) + geom_text(aes(label=label), data=b$labels, hjust='left') + facet_wrap(~tree) + coord_flip()
+    ggplot(b$segments, aes(x=x,y=y)) + 
+      geom_segment(aes(xend=xend, yend=yend), data=b$segments, alpha=0.5) + 
+      geom_text(aes(label=label), data=b$labels, hjust='left') + 
+      facet_wrap(~tree, scales='free_y') + 
+      coord_flip() +
+      theme_bw() +
+      theme(axis.text.y=element_blank(),
+            axis.title.y=element_blank(),
+            strip.text = element_blank(),
+            strip.background = element_blank())
   })
   
   output$network <- renderVisNetwork({
@@ -226,7 +257,7 @@ shinyServer(function(input, output, session) {
     reaction_filter <- input$reaction_filter
     logfine('Finished loading: network')
     
-    if('model missing' %in% model1_parsed){
+    if(is_null(model1_parsed)){
       model1_parsed <- list(rxns = tibble::tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef),
                             mets = tibble::tribble(~met),
                             stoich = tibble::tribble(~stoich, ~abbreviation, ~met))

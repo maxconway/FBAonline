@@ -17,8 +17,7 @@ shinyUI(fluidPage(
   sidebarLayout(
     sidebarPanel(
       actionButton("reevaluate", "Evaluate Model"),
-      textInput('model_url_1','URL for model 1'),
-      textInput('model_url_2','URL for model 2'),
+      textInput('model_url_1','Model URL'),
       selectizeInput('reaction_filter', 'Filter reactions',NULL,multiple=TRUE),
       h3('Instructions'),
       p('Paste a link to a google sheet containing a metabolic model into one of the "model url" boxes.'),
@@ -31,20 +30,23 @@ shinyUI(fluidPage(
     # Show a plot of the generated distribution
     mainPanel(
       tabsetPanel(
-        tabPanel(title = 'table',
+        tabPanel(title = 'Flux Table',
           dataTableOutput('model_table')
         ),
-        tabPanel(title = 'bar comparison',
+        tabPanel(title = 'Bar Comparison',
+                 inputPanel(textInput('model_url_2','URL for Model 2')),
                  plotOutput('bar_chart')
                  ),
-        tabPanel(title = 'model 1 network visualization',
+        tabPanel(title = 'Network Visualization',
                  p('Select a model and filter some reactions to see their network.'),
                  visNetworkOutput("network")
                  ),
-        tabPanel(title = 'model 1 metabolites',
+        tabPanel(title = 'Metabolite Table',
                  dataTableOutput('metabolite_table')
                 ),
-        tabPanel(title = 'model 1 clusters',
+        tabPanel(title = 'Reaction Clusters',
+                 inputPanel(sliderInput('cut_h', 'Cut Height', min=0, max=1000, value=100),
+                            sliderInput('min_members', 'Minimum Members', min=1, max=50, value=4, round = TRUE)),
                  plotOutput('cluster_chart')
         )
         # tabPanel(title = 'heatmap',
