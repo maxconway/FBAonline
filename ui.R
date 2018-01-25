@@ -18,6 +18,7 @@ shinyUI(fluidPage(
     sidebarPanel(
       actionButton("reevaluate", "Evaluate Model"),
       textInput('model_url_1','Model URL'),
+      textOutput('model_status_1'),
       selectizeInput('reaction_filter', 'Filter reactions',NULL,multiple=TRUE),
       h3('Instructions'),
       p('Paste a link to a google sheet containing a metabolic model into one of the "model url" boxes.'),

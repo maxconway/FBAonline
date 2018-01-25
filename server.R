@@ -69,7 +69,7 @@ shinyServer(function(input, output, session) {
     model1 <- model1()
     logfine('Finished loading: model1_parsed')
     if(!is.null(model1) & nrow(model1) > 0){
-      result <- fbar::reactiontbl_to_expanded(model1)
+      result <- safely(fbar::reactiontbl_to_expanded)(model1)$result
     }else{
       result <- NULL
     }
@@ -97,7 +97,8 @@ shinyServer(function(input, output, session) {
     }
     
     model %>%
-      find_fluxes_df(do_minimization = FALSE) %>%
+      safely(find_fluxes_df)(do_minimization = FALSE) %>%
+      `$`(result) %>%
       bind_rows(tibble(lowbnd=double(), flux=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double()),.)
   })
   
@@ -180,6 +181,27 @@ shinyServer(function(input, output, session) {
   })
   
   #### Outputs
+  
+  output$model_status_1 <- renderText({
+    logfine('Started evaluation: model_status_1')
+    model1 <- model1()
+    model1_parsed <- model1_parsed()
+    model1_reactions_with_fluxes <- model1_reactions_with_fluxes()
+    logfine('Finished loading: model_status_1')
+    if(nrow(model1)==0){
+      return('Waiting for model')
+    }
+    if(nrow(model1)>0 & is_null(model1_parsed)){
+      return('Model failed to parse')
+    }
+    if(nrow(model1)>0 & !is_null(model1_parsed) & is_null(model1_reactions_with_fluxes)){
+      return('Model failed to evaluate')
+    }
+    if(nrow(model1)>0 & !is_null(model1_parsed) & !is_null(model1_reactions_with_fluxes)){
+      return('')
+    }
+    
+  })
   
   output$model_table <- renderDataTable({
     logfine('Started evaluation: model_table')
