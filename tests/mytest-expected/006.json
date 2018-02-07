@@ -8,16 +8,16 @@
     "reevaluate": 1
   },
   "output": {
-    "model_status_1": "",
+    "model_status_1": "Model OK",
     "model_table": {
       "colnames": [
         "lowbnd",
-        "flux",
         "uppbnd",
         "abbreviation",
         "name",
         "equation",
         "obj_coef",
+        "flux",
         "officialName",
         "Gene-Protein-Reaction Association",
         "Gene-Reaction Association",

@@ -12,12 +12,12 @@
     "model_table": {
       "colnames": [
         "lowbnd",
-        "flux",
         "uppbnd",
         "abbreviation",
         "name",
         "equation",
-        "obj_coef"
+        "obj_coef",
+        "flux"
       ],
       "options": null,
       "evalOptions": null,
