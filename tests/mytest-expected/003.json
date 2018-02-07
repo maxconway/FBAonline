@@ -1,0 +1,38 @@
+{
+  "input": {
+    "cut_h": 100,
+    "min_members": 4,
+    "model_url_1": "https://docs.google.com/spreadsheets/d/1XdpAKFyEpGjPmI3UZYYK4zQw-RUzKWD2_GJnp3LO_Pk/edit?usp=sharing",
+    "model_url_2": "",
+    "reaction_filter": null,
+    "reevaluate": 1
+  },
+  "output": {
+    "model_status_1": "",
+    "model_table": {
+      "colnames": [
+        "lowbnd",
+        "flux",
+        "uppbnd",
+        "abbreviation",
+        "name",
+        "equation",
+        "obj_coef",
+        "officialName",
+        "Gene-Protein-Reaction Association",
+        "Gene-Reaction Association",
+        "Protein-Reaction Association",
+        "Subsystem",
+        "EC Number"
+      ],
+      "options": null,
+      "evalOptions": null,
+      "searchDelay": 500,
+      "callback": "function(oTable) {}",
+      "escape": true
+    }
+  },
+  "export": {
+
+  }
+}

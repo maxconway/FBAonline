@@ -1,0 +1,32 @@
+{
+  "input": {
+    "cut_h": 100,
+    "min_members": 4,
+    "model_url_1": "",
+    "model_url_2": "",
+    "reaction_filter": null,
+    "reevaluate": 0
+  },
+  "output": {
+    "model_status_1": "Waiting for model",
+    "model_table": {
+      "colnames": [
+        "lowbnd",
+        "flux",
+        "uppbnd",
+        "abbreviation",
+        "name",
+        "equation",
+        "obj_coef"
+      ],
+      "options": null,
+      "evalOptions": null,
+      "searchDelay": 500,
+      "callback": "function(oTable) {}",
+      "escape": true
+    }
+  },
+  "export": {
+
+  }
+}
