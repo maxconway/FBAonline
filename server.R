@@ -18,9 +18,12 @@ library(ggdendro)
 
 options(shiny.sanitize.errors = FALSE)
 
-
 basicConfig('FINEST')
 addHandler(writeToConsole)
+
+dummytable <- tibble(lowbnd=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double())
+dummyexpanded <- dummytable %>% fbar::reactiontbl_to_expanded()
+dummytableflux <- dummytable %>% mutate(flux=double())
 
 shinyServer(function(input, output, session) {
   #### Inputs
@@ -30,17 +33,7 @@ shinyServer(function(input, output, session) {
     input$reevaluate
     model_url_1 <- input$model_url_1
     logfine('Finished loading: model1')
-    if(nchar(model_url_1)<10){
-      loginfo('url too short')
-      result <- tibble(lowbnd=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double())
-    }else{
-      result <- tryCatch(gsheet::gsheet2tbl(model_url_1),
-                         error = function(e){
-                           validate(need(FALSE, label = 'URL for model 1', message='URL for model 1 is not a google spreadsheet'))
-                           return(tibble(lowbnd=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double()))
-                         })
-    }
-    result
+    possibly(gsheet::gsheet2tbl, otherwise = dummytable)(model_url_1)
   })
   
   model2 <- reactive({
@@ -48,70 +41,42 @@ shinyServer(function(input, output, session) {
     input$reevaluate
     model_url_2 <- input$model_url_2
     logfine('Finished loading: model2')
-    if(nchar(model_url_2)<10){
-      loginfo('url too short')
-      result <- tibble(lowbnd=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double())
-    }else{
-      result <- tryCatch(gsheet::gsheet2tbl(model_url_2),
-                         error = function(e){
-                           validate(need(FALSE, label = 'URL for model 2', message='URL for model 2 is not a google spreadsheet'))
-                           return(tibble(lowbnd=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double()))
-                         })
-    }
-    result
+    possibly(gsheet::gsheet2tbl, otherwise = dummytable)(model_url_2)
   })
   
   ### Processing
   
   model1_parsed <- reactive({
     logfine('Started evaluation: model1_parsed')
-    model1 <- model1()
+    model <- model1()
     logfine('Finished loading: model1_parsed')
-    if(!is.null(model1) & nrow(model1) > 0){
-      result <- safely(fbar::reactiontbl_to_expanded)(model1)$result
-    }else{
-      result <- NULL
-    }
-    result
+    possibly(fbar::reactiontbl_to_expanded, dummyexpanded)(model)
   })
   
   model2_parsed <- reactive({
     logfine('Started evaluation: model2_parsed')
-    model2 <- model2()
+    model <- model2()
     logfine('Finished loading: model2_parsed')
-    if(!is.null(model2) & nrow(model2) > 0){
-      result <- fbar::reactiontbl_to_expanded(model2)
-    }else{
-      result <- NULL
-    }
-    result
+    possibly(fbar::reactiontbl_to_expanded, dummyexpanded)(model)
   })
   
   model1_reactions_with_fluxes <- reactive(label = 'model1_reactions_with_fluxes', x={
     logfine('Started evaluation: model1_reactions_with_fluxes')
     model <- model1()
     logfine('Finished loading: model1_reactions_with_fluxes')
-    if(nrow(model)==0){
-      return(tibble(lowbnd=double(), flux=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double()))
-    }
     
     model %>%
-      safely(find_fluxes_df)(do_minimization = FALSE) %>%
-      `$`(result) %>%
-      bind_rows(tibble(lowbnd=double(), flux=double(), uppbnd=double(), abbreviation=character(), name=character(), equation=character(), obj_coef=double()),.)
+      possibly(find_fluxes_df, dummytableflux)(do_minimization = FALSE) %>%
+      bind_rows(dummytableflux,.)
   })
   
   model2_reactions_with_fluxes <- reactive(label = 'model2_reactions_with_fluxes', x={
     logfine('Started evaluation: model2_reactions_with_fluxes')
     model <- model2()
     logfine('Finished loading: model2_reactions_with_fluxes')
-    if(nrow(model)==0){
-      return(tibble(lowbnd=double(), flux=double(), uppbnd=double(), abbreviation=character(), equation=character(), obj_coef=double()))
-    }
-    
     model %>%
-      find_fluxes_df(do_minimization = FALSE) %>%
-      bind_rows(tibble(lowbnd=double(), flux=double(), uppbnd=double(), abbreviation=character(), equation=character(), obj_coef=double()),.)
+      possibly(find_fluxes_df, dummytableflux)(do_minimization = FALSE) %>%
+      bind_rows(dummytableflux,.)
   })
   
   model1_filtered_reactions_with_fluxes <- reactive(label = 'model1_filtered_reactions_with_fluxes', x={
@@ -139,7 +104,7 @@ shinyServer(function(input, output, session) {
     model1_parsed <- model1_parsed()
     logfine('Finished loading: clusters')
     
-    if(is_null(model1_parsed)){
+    if(!all(map_int(model1_parsed, nrow)>0)){
       return(NULL)
     }
     
@@ -155,9 +120,9 @@ shinyServer(function(input, output, session) {
       cluster_walktrap() %>%
       as.dendrogram()
   })
-
+  
   ### Observations
-
+  
   observe({
     logfine('Started evaluation: observe')
     model1_parsed <- model1_parsed()
@@ -169,12 +134,15 @@ shinyServer(function(input, output, session) {
       map_df(extract2, 'rxns') %>%
       extract2('abbreviation') %>%
       unique()
-      
+    
     updateSelectizeInput(session, 'reaction_filter', choices = abbreviations)
   })
   
-  observe({
+  observe(priority=-100, x={
     clusters <- clusters()
+    if(is.null(clusters)){
+      return(NULL)
+    }
     updateSliderInput(session, 'cut_h', max = attr(clusters,'height'))
     updateSliderInput(session, 'min_members', max = attr(clusters,'members'))
   })
@@ -193,11 +161,11 @@ shinyServer(function(input, output, session) {
     if(nrow(model1)>0 & is_null(model1_parsed)){
       return('Model failed to parse')
     }
-    if(nrow(model1)>0 & !is_null(model1_parsed) & is_null(model1_reactions_with_fluxes)){
+    if(nrow(model1)>0 & !is_null(model1_parsed) & !has_name(model1_reactions_with_fluxes, 'flux')){
       return('Model failed to evaluate')
     }
-    if(nrow(model1)>0 & !is_null(model1_parsed) & !is_null(model1_reactions_with_fluxes)){
-      return('')
+    if(nrow(model1)>0 & !is_null(model1_parsed) & has_name(model1_reactions_with_fluxes, 'flux')){
+      return('Model OK')
     }
     
   })
@@ -206,7 +174,7 @@ shinyServer(function(input, output, session) {
     logfine('Started evaluation: model_table')
     filtered_reactions_with_fluxes <- model1_filtered_reactions_with_fluxes()
     logfine('Finished loading: model_table')
-
+    
     filtered_reactions_with_fluxes %>%
       mutate(flux = signif(flux, 3)) %>%
       #mutate_if(is_character, str_trunc, width=40) %>% # Produces weird error
@@ -251,7 +219,9 @@ shinyServer(function(input, output, session) {
     model1_parsed <- model1_parsed()
     clusters <- clusters()
     logfine('Finished loading: cluster_chart')
-    if(is_null(clusters)){return(NULL)}
+    validate(need(all(map_int(model1_parsed, nrow)>0), 'model not yet parsed'),
+             need(clusters, 'clusters not yet calculated')
+    )
     
     b <- clusters %>% 
       cut(h = input$cut_h) %>%
@@ -282,38 +252,32 @@ shinyServer(function(input, output, session) {
     model1_parsed <- model1_parsed()
     reaction_filter <- input$reaction_filter
     logfine('Finished loading: network')
-    
-    if(is_null(model1_parsed)){
-      model1_parsed <- list(rxns = tibble::tribble(~abbreviation, ~equation, ~lowbnd, ~uppbnd, ~obj_coef),
-                            mets = tibble::tribble(~met),
-                            stoich = tibble::tribble(~stoich, ~abbreviation, ~met))
-    }
-      with(model1_parsed,{
-        rxns <- rxns %>% filter(abbreviation %in% reaction_filter)
-        stoich <- stoich %>% filter(abbreviation %in% reaction_filter)
-        mets <- mets %>% filter(met %in% stoich$met)
-        
-        if(nrow(rxns)>50){
-          shiny::validate('Too many reactions. Filter down to 50 or less.')
-        }
-        
-        visNetwork(nodes=bind_rows(rxns %>% 
-                                     transmute(id=as.character(abbreviation),
-                                               type='rxn'),
-                                   mets %>% 
-                                     transmute(id=met, type='met')) %>%
-                     mutate(title=id,
-                            group=type),
-                   edges=stoich %>%
-                     mutate(from = ifelse(stoich>0, as.character(abbreviation), met),
-                            to = ifelse(stoich>0, met, as.character(abbreviation)),
-                            value = abs(stoich),
-                            title = abs(stoich),
-                            arrows='middle')) %>%
+    with(model1_parsed,{
+      rxns <- rxns %>% filter(abbreviation %in% reaction_filter)
+      stoich <- stoich %>% filter(abbreviation %in% reaction_filter)
+      mets <- mets %>% filter(met %in% stoich$met)
+      
+      if(nrow(rxns)>50){
+        shiny::validate('Too many reactions. Filter down to 50 or less.')
+      }
+      
+      visNetwork(nodes=bind_rows(rxns %>% 
+                                   transmute(id=as.character(abbreviation),
+                                             type='rxn'),
+                                 mets %>% 
+                                   transmute(id=met, type='met')) %>%
+                   mutate(title=id,
+                          group=type),
+                 edges=stoich %>%
+                   mutate(from = ifelse(stoich>0, as.character(abbreviation), met),
+                          to = ifelse(stoich>0, met, as.character(abbreviation)),
+                          value = abs(stoich),
+                          title = abs(stoich),
+                          arrows='middle')) %>%
         visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
         visEdges(smooth = FALSE) %>%
         visPhysics(stabilization = FALSE)
-      })
+    })
     
   })
   
