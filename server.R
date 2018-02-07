@@ -18,7 +18,6 @@ library(ggdendro)
 
 options(shiny.sanitize.errors = FALSE)
 
-source('R/methelpers.R')
 
 basicConfig('FINEST')
 addHandler(writeToConsole)
@@ -238,7 +237,7 @@ shinyServer(function(input, output, session) {
     if(!is.null(model1_parsed)){
       result <- model1_parsed %>%
         getElement('mets') %>%
-        expand_metabolites() %>%
+        decompose_metabolites() %>%
         mutate(present = 'present') %>%
         tidyr::spread(compartment, present, fill='absent')
     }else{
